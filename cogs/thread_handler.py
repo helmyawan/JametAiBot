@@ -1,6 +1,7 @@
 import discord
 from discord.ext import commands
 import logging
+import asyncio
 from config import CHANNEL_ID
 
 log = logging.getLogger("jamet")
@@ -18,7 +19,7 @@ class ThreadHandler(commands.Cog):
         log.info(f"New thread created: {thread.name} ({thread.id})")
         
         # Give Discord API a second to register the thread creator
-        await discord.utils.sleep_until(discord.utils.utcnow())
+        await asyncio.sleep(1)
         
         try:
             owner = thread.owner_id

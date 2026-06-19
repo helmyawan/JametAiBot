@@ -2,7 +2,6 @@ import discord
 from discord.ext import commands
 import logging
 import os
-import asyncio
 from config import DISCORD_TOKEN
 from database import init_db
 

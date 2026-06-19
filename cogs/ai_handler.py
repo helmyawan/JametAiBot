@@ -1,0 +1,96 @@
+import discord
+from discord.ext import commands
+import logging
+import aiohttp
+import re
+import time
+from config import CHANNEL_ID, LLM_API_URL, LLM_MODEL, LLM_TIMEOUT, RATE_LIMIT_SECONDS, MAX_HISTORY, SOUL_PROMPT
+from database import save_message, get_history
+
+log = logging.getLogger("jamet")
+
+TRIGGER_KEYWORDS = re.compile(r'\b(met|jam|jamet|jmt|jametai)\b', re.IGNORECASE)
+
+class AIHandler(commands.Cog):
+    def __init__(self, bot):
+        self.bot = bot
+        self.rate_limits = {} # (user_id, thread_id) -> timestamp
+        
+    def check_trigger(self, message):
+        if self.bot.user in message.mentions:
+            return True
+        if TRIGGER_KEYWORDS.search(message.content):
+            return True
+        return False
+
+    async def call_llm(self, messages):
+        payload = {
+            "model": LLM_MODEL,
+            "messages": messages
+        }
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.post(LLM_API_URL, json=payload, timeout=LLM_TIMEOUT) as resp:
+                    if resp.status != 200:
+                        log.error(f"LLM API Error: {resp.status} - {await resp.text()}")
+                        return None
+                    data = await resp.json()
+                    return data["choices"][0]["message"]["content"]
+        except Exception as e:
+            log.error(f"LLM API Exception: {e}")
+            return None
+
+    @commands.Cog.listener()
+    async def on_message(self, message):
+        # Ignore bots and webhooks
+        if message.author.bot:
+            return
+            
+        # Ensure it's in a thread
+        if not isinstance(message.channel, discord.Thread):
+            return
+            
+        # Ensure the thread's parent is our target channel
+        if getattr(message.channel.parent, "id", None) != CHANNEL_ID:
+            return
+            
+        # Check trigger
+        if not self.check_trigger(message):
+            return
+
+        # Rate Limit check
+        user_key = (message.author.id, message.channel.id)
+        now = time.time()
+        last_msg_time = self.rate_limits.get(user_key, 0)
+        
+        if now - last_msg_time < RATE_LIMIT_SECONDS:
+            await message.reply("Santai jancuk, ngenteni sitik lah! Ojo kesusu cok.")
+            return
+            
+        self.rate_limits[user_key] = now
+
+        # Fetch history and call LLM
+        async with message.channel.typing():
+            await save_message(message.channel.id, "user", message.content)
+            
+            history = await get_history(message.channel.id, MAX_HISTORY)
+            
+            # Build payload
+            messages = [{"role": "system", "content": SOUL_PROMPT}] + history
+            
+            reply_text = await self.call_llm(messages)
+            
+            if reply_text:
+                await save_message(message.channel.id, "assistant", reply_text)
+                # Split reply if too long for Discord (max 2000 chars)
+                if len(reply_text) > 2000:
+                    chunks = [reply_text[i:i+2000] for i in range(0, len(reply_text), 2000)]
+                    for chunk in chunks:
+                        await message.reply(chunk)
+                else:
+                    await message.reply(reply_text)
+            else:
+                await message.reply("Matamu cok, server ra iso konek. Server modyar asu!")
+
+async def setup(bot):
+    await bot.add_cog(AIHandler(bot))

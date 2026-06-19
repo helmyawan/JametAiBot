@@ -15,7 +15,15 @@ class AIHandler(commands.Cog):
     def __init__(self, bot):
         self.bot = bot
         self.rate_limits = {} # (user_id, thread_id) -> timestamp
+        self.session = None
         
+    async def cog_load(self):
+        self.session = aiohttp.ClientSession()
+
+    async def cog_unload(self):
+        if self.session:
+            await self.session.close()
+
     def check_trigger(self, message):
         if self.bot.user in message.mentions:
             return True
@@ -29,13 +37,13 @@ class AIHandler(commands.Cog):
             "messages": messages
         }
         try:
-            async with aiohttp.ClientSession() as session:
-                async with session.post(LLM_API_URL, json=payload, timeout=LLM_TIMEOUT) as resp:
-                    if resp.status != 200:
-                        log.error(f"LLM API Error: {resp.status} - {await resp.text()}")
-                        return None
-                    data = await resp.json()
-                    return data["choices"][0]["message"]["content"]
+            timeout = aiohttp.ClientTimeout(total=LLM_TIMEOUT)
+            async with self.session.post(LLM_API_URL, json=payload, timeout=timeout) as resp:
+                if resp.status != 200:
+                    log.error(f"LLM API Error: {resp.status} - {await resp.text()}")
+                    return None
+                data = await resp.json()
+                return data["choices"][0]["message"]["content"]
         except Exception as e:
             log.error(f"LLM API Exception: {e}")
             return None
@@ -61,6 +69,10 @@ class AIHandler(commands.Cog):
         # Rate Limit check
         user_key = (message.author.id, message.channel.id)
         now = time.time()
+
+        # Evict stale rate limit entries to prevent unbounded memory growth
+        self.rate_limits = {k: v for k, v in self.rate_limits.items() if now - v < RATE_LIMIT_SECONDS * 10}
+
         last_msg_time = self.rate_limits.get(user_key, 0)
         
         if now - last_msg_time < RATE_LIMIT_SECONDS:
@@ -71,16 +83,15 @@ class AIHandler(commands.Cog):
 
         # Fetch history and call LLM
         async with message.channel.typing():
-            await save_message(message.channel.id, "user", message.content)
-            
             history = await get_history(message.channel.id, MAX_HISTORY)
             
-            # Build payload
-            messages = [{"role": "system", "content": SOUL_PROMPT}] + history
+            # Build payload, conditionally adding current msg if it isn't saved yet
+            messages = [{"role": "system", "content": SOUL_PROMPT}] + history + [{"role": "user", "content": message.content}]
             
             reply_text = await self.call_llm(messages)
             
             if reply_text:
+                await save_message(message.channel.id, "user", message.content)
                 await save_message(message.channel.id, "assistant", reply_text)
                 # Split reply if too long for Discord (max 2000 chars)
                 if len(reply_text) > 2000:

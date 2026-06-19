@@ -10,7 +10,9 @@ class ErrorHandler(commands.Cog):
 
     @commands.Cog.listener()
     async def on_command_error(self, ctx, error):
-        log.error(f"Command error: {error}")
+        if isinstance(error, commands.CommandNotFound):
+            return
+        log.error(f"Command error: {error}", exc_info=True)
 
     @commands.Cog.listener()
     async def on_error(self, event, *args, **kwargs):

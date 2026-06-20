@@ -25,7 +25,7 @@ class JametBot(commands.Bot):
     async def setup_hook(self):
         await init_db()
         log.info("Database initialized.")
-        for ext in ["cogs.thread_handler", "cogs.ai_handler", "cogs.error_handler"]:
+        for ext in ["cogs.thread_handler", "cogs.ai_handler", "cogs.error_handler", "cogs.status_handler"]:
             try:
                 await self.load_extension(ext)
                 log.info(f"Loaded extension: {ext}")

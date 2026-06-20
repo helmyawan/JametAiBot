@@ -38,8 +38,11 @@ class AIHandler(commands.Cog):
         
         prompt = (
             "Ekstrak sifat, skill, atau kesalahan dominan user ini dalam 1-2 kalimat padat "
-            "berdasarkan interaksi terbaru. Jangan gunakan bahasa formal. Pakai bahasa kasar/Suroboyoan. "
-            "Jika tidak ada yang penting dicatat, balas dengan KOSONG."
+            "berdasarkan interaksi terbaru. Pakai bahasa Suroboyoan kasar.\n"
+            "Kamu JUGA HARUS MENILAI apakah user ini nanya hal pintar/bermanfaat (+1), nanya hal bodoh/ngeyel (-1), atau standar (0).\n"
+            "PENTING: Di akhir responsmu, wajib tambahkan line persis seperti ini:\n"
+            "SCORE_MODIFIER: <angka>\n"
+            "Jika tidak ada notes penting, isi notes dengan KOSONG."
         )
         
         messages = [
@@ -48,8 +51,20 @@ class AIHandler(commands.Cog):
         ]
         
         rep_text = await self.call_llm(messages)
-        if rep_text and "KOSONG" not in rep_text.upper().strip():
-            await update_user_reputation(str(user_id), rep_text)
+        if rep_text:
+            # Parse score modifier
+            score_delta = 0
+            match = re.search(r'SCORE_MODIFIER:\s*([+-]?\d+)', rep_text)
+            if match:
+                score_delta = int(match.group(1))
+                rep_text = re.sub(r'SCORE_MODIFIER:\s*[+-]?\d+', '', rep_text).strip()
+                
+            if "KOSONG" not in rep_text.upper():
+                await update_user_reputation(user_id, rep_text, score_delta)
+            elif score_delta != 0:
+                # If notes are empty but score changed, still get old notes to preserve them
+                old_notes, _ = await get_user_reputation(user_id)
+                await update_user_reputation(user_id, old_notes, score_delta)
 
     async def call_llm(self, messages):
         payload = {
@@ -135,6 +150,12 @@ class AIHandler(commands.Cog):
             
         self.rate_limits[user_key] = now
 
+        # Add 👀 reaction
+        try:
+            await message.add_reaction("👀")
+        except:
+            pass
+
         # Fetch history and call LLM
         async with message.channel.typing():
             # Fetch file content if any
@@ -142,11 +163,20 @@ class AIHandler(commands.Cog):
             final_user_content = message.content + attachment_text
 
             history = await get_history(message.channel.id, MAX_HISTORY)
-            user_rep, _ = await get_user_reputation(message.author.id)
-
+            user_rep_notes, user_score = await get_user_reputation(message.author.id)
+            
             system_prompt = SOUL_PROMPT
-            if user_rep:
-                system_prompt += f"\n\n[INFO: Kamu punya ingatan historis tentang user ini: {user_rep}]"
+            
+            # Determine Tier
+            if user_score >= 5:
+                tier = "Suhu / Pinter"
+            elif user_score <= -5:
+                tier = "Goblok Akut / Beban Tim"
+            else:
+                tier = "Biasa / Ndes"
+                
+            if user_rep_notes or user_score != 0:
+                system_prompt += f"\n\n[INFO REPUTASI USER]:\nScore: {user_score} (Tier: {tier})\nNotes: {user_rep_notes}"
             
             # Build payload, conditionally adding current msg if it isn't saved yet
             messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": final_user_content}]
@@ -170,6 +200,13 @@ class AIHandler(commands.Cog):
                 else:
                     await message.reply(reply_text)
 
+                # Replace reaction
+                try:
+                    await message.remove_reaction("👀", self.bot.user)
+                    await message.add_reaction("✅")
+                except:
+                    pass
+
                 # Trigger background memory update (fire and forget)
                 task = asyncio.create_task(self._update_reputation_bg(
                     message.author.id, 
@@ -180,6 +217,11 @@ class AIHandler(commands.Cog):
                 task.add_done_callback(lambda t: t.exception() and log.error(f"Reputation BG task failed: {t.exception()}"))
             else:
                 await message.reply("Matamu cok, server ra iso konek. Server modyar asu!")
+                try:
+                    await message.remove_reaction("👀", self.bot.user)
+                    await message.add_reaction("❌")
+                except:
+                    pass
 
 async def setup(bot):
     await bot.add_cog(AIHandler(bot))

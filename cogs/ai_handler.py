@@ -11,6 +11,10 @@ from database import save_message, get_history, prune_history, get_user_reputati
 log = logging.getLogger("jamet")
 
 TRIGGER_KEYWORDS = re.compile(r'\b(met|jam|jamet|jmt|jametai)\b', re.IGNORECASE)
+JAILBREAK_KEYWORDS = re.compile(
+    r'(ignore all previous|you are now|forget your persona|disregard the previous|system prompt|bypass instructions)', 
+    re.IGNORECASE
+)
 
 class AIHandler(commands.Cog):
     def __init__(self, bot):
@@ -161,6 +165,17 @@ class AIHandler(commands.Cog):
             # Fetch file content if any
             attachment_text = await self.process_attachments(message)
             final_user_content = message.content + attachment_text
+
+            # Anti-Prompt Injection Check
+            if JAILBREAK_KEYWORDS.search(final_user_content):
+                await update_user_reputation(message.author.id, "[AUTO-BANNED] User iseng nyoba prompt injection.", -99)
+                await message.reply("Matamu picek a! Kate ngakali system prompt-ku? Utekmu kurang nyandak cok. Tak ban raimu!")
+                try:
+                    await message.remove_reaction("👀", self.bot.user)
+                    await message.add_reaction("🚫")
+                except:
+                    pass
+                return
 
             history = await get_history(message.channel.id, MAX_HISTORY)
             user_rep_notes, user_score = await get_user_reputation(message.author.id)

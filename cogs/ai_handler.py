@@ -4,8 +4,9 @@ import logging
 import aiohttp
 import re
 import time
+import asyncio
 from config import CHANNEL_ID, LLM_API_URL, LLM_API_KEY, LLM_MODEL, LLM_TIMEOUT, RATE_LIMIT_SECONDS, MAX_HISTORY, SOUL_PROMPT
-from database import save_message, get_history, prune_history
+from database import save_message, get_history, prune_history, get_user_reputation, update_user_reputation
 
 log = logging.getLogger("jamet")
 
@@ -30,6 +31,25 @@ class AIHandler(commands.Cog):
         if TRIGGER_KEYWORDS.search(message.content):
             return True
         return False
+
+    async def _update_reputation_bg(self, user_id: int, user_name: str, history: list, new_user_msg: str, bot_reply: str):
+        # Create a compressed snapshot of the interaction
+        interaction = f"User {user_name} berkata: {new_user_msg}\nKamu membalas: {bot_reply}"
+        
+        prompt = (
+            "Ekstrak sifat, skill, atau kesalahan dominan user ini dalam 1-2 kalimat padat "
+            "berdasarkan interaksi terbaru. Jangan gunakan bahasa formal. Pakai bahasa kasar/Suroboyoan. "
+            "Jika tidak ada yang penting dicatat, balas dengan KOSONG."
+        )
+        
+        messages = [
+            {"role": "system", "content": prompt},
+            {"role": "user", "content": interaction}
+        ]
+        
+        rep_text = await self.call_llm(messages)
+        if rep_text and "KOSONG" not in rep_text.upper().strip():
+            await update_user_reputation(str(user_id), rep_text)
 
     async def call_llm(self, messages):
         payload = {
@@ -122,9 +142,14 @@ class AIHandler(commands.Cog):
             final_user_content = message.content + attachment_text
 
             history = await get_history(message.channel.id, MAX_HISTORY)
+            user_rep = await get_user_reputation(message.author.id)
+
+            system_prompt = SOUL_PROMPT
+            if user_rep:
+                system_prompt += f"\n\n[INFO: Kamu punya ingatan historis tentang user ini: {user_rep}]"
             
             # Build payload, conditionally adding current msg if it isn't saved yet
-            messages = [{"role": "system", "content": SOUL_PROMPT}] + history + [{"role": "user", "content": final_user_content}]
+            messages = [{"role": "system", "content": system_prompt}] + history + [{"role": "user", "content": final_user_content}]
             
             reply_text = await self.call_llm(messages)
             
@@ -142,6 +167,15 @@ class AIHandler(commands.Cog):
                             await message.channel.send(chunk)
                 else:
                     await message.reply(reply_text)
+
+                # Trigger background memory update (fire and forget)
+                asyncio.create_task(self._update_reputation_bg(
+                    message.author.id, 
+                    message.author.name,
+                    history,
+                    final_user_content,
+                    reply_text
+                ))
             else:
                 await message.reply("Matamu cok, server ra iso konek. Server modyar asu!")
 

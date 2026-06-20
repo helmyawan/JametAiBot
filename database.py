@@ -81,3 +81,27 @@ async def update_user_reputation(user_id: str, notes: str, score_delta: int = 0)
             ON CONFLICT(user_id) DO UPDATE SET notes=excluded.notes, score=?, updated_at=CURRENT_TIMESTAMP
         ''', (str(user_id), notes, new_score, new_score))
         await db.commit()
+
+async def get_top_reputation(limit: int = 5, asc: bool = False):
+    order = "ASC" if asc else "DESC"
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute(f"SELECT user_id, score FROM user_reputation ORDER BY score {order} LIMIT ?", (limit,)) as cursor:
+            return await cursor.fetchall()
+
+async def reset_reputation(user_id: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("DELETE FROM user_reputation WHERE user_id = ?", (str(user_id),))
+        await db.commit()
+
+async def clear_thread_history(thread_id: str):
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute("DELETE FROM chat_history WHERE thread_id = ?", (str(thread_id),))
+        await db.commit()
+
+async def get_stats():
+    async with aiosqlite.connect(DB_NAME) as db:
+        async with db.execute("SELECT COUNT(*) FROM user_reputation") as c:
+            users = (await c.fetchone())[0]
+        async with db.execute("SELECT COUNT(DISTINCT thread_id) FROM chat_history") as c:
+            threads = (await c.fetchone())[0]
+        return users, threads

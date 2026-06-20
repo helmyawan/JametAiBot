@@ -141,10 +141,9 @@ class AIHandler(commands.Cog):
         # Ensure the thread's parent is our target channel
         if getattr(message.channel.parent, "id", None) != CHANNEL_ID:
             return
-            
-        # Check trigger
-        if not self.check_trigger(message):
-            return
+
+        # Di dalam thread JametAI, semua pesan user otomatis ditangani
+        # tanpa perlu keyword/mention trigger
 
         # Rate Limit check
         user_key = (message.author.id, message.channel.id)

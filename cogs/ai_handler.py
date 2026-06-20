@@ -4,7 +4,7 @@ import logging
 import aiohttp
 import re
 import time
-from config import CHANNEL_ID, LLM_API_URL, LLM_MODEL, LLM_TIMEOUT, RATE_LIMIT_SECONDS, MAX_HISTORY, SOUL_PROMPT
+from config import CHANNEL_ID, LLM_API_URL, LLM_API_KEY, LLM_MODEL, LLM_TIMEOUT, RATE_LIMIT_SECONDS, MAX_HISTORY, SOUL_PROMPT
 from database import save_message, get_history, prune_history
 
 log = logging.getLogger("jamet")
@@ -36,9 +36,13 @@ class AIHandler(commands.Cog):
             "model": LLM_MODEL,
             "messages": messages
         }
+        headers = {}
+        if LLM_API_KEY:
+            headers["Authorization"] = f"Bearer {LLM_API_KEY}"
+            
         try:
             timeout = aiohttp.ClientTimeout(total=LLM_TIMEOUT)
-            async with self.session.post(LLM_API_URL, json=payload, timeout=timeout) as resp:
+            async with self.session.post(LLM_API_URL, json=payload, headers=headers, timeout=timeout) as resp:
                 if resp.status != 200:
                     log.error(f"LLM API Error: {resp.status} - {await resp.text()}")
                     return None

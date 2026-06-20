@@ -5,11 +5,25 @@
 ---
 
 ## 1. Ringkasan
-Upgrade fungsionalitas JametAI ke V3. Menambahkan Auto-Archiver Thread, Behavior Senior Dev Mode, Gamified Reputation Score, dan Slash Commands lengkap (utilities, moderation, leaderboards).
+Upgrade fungsionalitas JametAI ke V3. Menambahkan Auto-Archiver Thread, Behavior Senior Dev Mode, Gamified Reputation Score, Reaction Indicators (👀 -> ✅), dan Slash Commands lengkap (utilities, moderation, leaderboards).
 
 ---
 
-## 2. Auto-Archiver (UX/Tidiness)
+## 2. Reaction Indicators (UX)
+
+### Konsep
+Memberikan visual cue kepada user bahwa pesan mereka sedang diproses, lalu menandai bahwa proses selesai. Ini melengkapi typing delay UX yang sudah ada.
+
+### Mekanisme
+Di dalam `on_message` pada `cogs/ai_handler.py`:
+1. Sesaat setelah pesan lolos trigger dan rate limit, bot menambahkan reaksi 👀 ke pesan tersebut (`await message.add_reaction("👀")`).
+2. Proses LLM dan *chunking* berjalan seperti biasa.
+3. Setelah respons terkirim sepenuhnya, bot menghapus reaksi 👀 (`await message.remove_reaction("👀", bot.user)`) lalu menambahkan reaksi ✅ (`await message.add_reaction("✅")`).
+4. Jika terjadi error API, hapus 👀 dan tambahkan ❌.
+
+---
+
+## 3. Auto-Archiver (UX/Tidiness)
 
 ### Konsep
 Menjaga channel Discord tetap bersih dari thread mati. Jika thread di `CHANNEL_ID` tidak memiliki aktivitas (pesan baru) lebih dari **3 hari (>72 jam)**, bot akan mengarsipkan thread tersebut secara otomatis.
@@ -21,7 +35,7 @@ Menjaga channel Discord tetap bersih dari thread mati. Jika thread di `CHANNEL_I
 
 ---
 
-## 3. Senior Dev Mode (Behavior)
+## 4. Senior Dev Mode (Behavior)
 
 ### Konsep
 JametAI bertindak sebagai Senior Dev tulen. Tidak mau diminta membuat aplikasi/script full dari nol ("write me a full app"). Hanya melayani debugging, review kode, atau penjelasan konsep.
@@ -32,7 +46,7 @@ JametAI bertindak sebagai Senior Dev tulen. Tidak mau diminta membuat aplikasi/s
 
 ---
 
-## 4. Gamified Reputation Score
+## 5. Gamified Reputation Score
 
 ### Konsep
 Selain notes teks (V2), user sekarang punya `score` bertipe integer. Nanya bagus/pintar = score naik (+1). Nanya bodoh/diulang-ulang = score turun (-1). Score mempengaruhi tingkat kekasaran balasan bot.
@@ -48,7 +62,7 @@ Selain notes teks (V2), user sekarang punya `score` bertipe integer. Nanya bagus
 
 ---
 
-## 5. Slash Commands (`cogs/slash_commands.py`)
+## 6. Slash Commands (`cogs/slash_commands.py`)
 
 Gunakan fitur `app_commands` bawaan `discord.py` v2. Sinkronisasi tree pada saat `setup_hook`.
 
@@ -66,7 +80,7 @@ Daftar Command:
 
 ---
 
-## 6. Persyaratan Modifikasi File
+## 7. Persyaratan Modifikasi File
 - `bot.py`: Tambah load extension `cogs.archiver_handler` dan `cogs.slash_commands`. Jangan lupa panggil `await self.tree.sync()`.
 - `config.py`: Load `SENIOR_DEV_MODE`.
 - `database.py`: Migrasi tabel `user_reputation` tambah kolom `score`. Tambah query leaderboard.

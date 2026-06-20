@@ -15,6 +15,26 @@ Bot ini didesain khusus untuk diam di **satu channel tertentu** (contoh: `#tanya
 - **Dynamic Sarcastic Status**: Activity status bot (Watching, Playing, Listening) akan berputar secara random tiap 30 menit dari 500+ kombinasi tulisan sarkas (contoh: *Watching kodinganmu sing bosok*).
 - **UX Typing Delay**: Response panjang dari LLM yang terpotong Discord 2000 chars limit akan dikirim dengan delay *typing indicator* supaya terasa lebih "nyata".
 
+- **Reaction UX (👀 -> ✅/❌)**: Memberikan feedback visual instan saat pesan sedang diproses dan saat selesai.
+- **Auto-Archiver**: Membersihkan thread yang tidak aktif lebih dari 3 hari (72 jam) secara otomatis dengan pesan sarkas perpisahan.
+- **Senior Dev Mode**: Opsi strict mode (`SENIOR_DEV_MODE=True`). Jika diaktifkan, bot akan menolak keras permintaan membuat aplikasi utuh dari nol dan menyuruh user belajar nulis kode sendiri.
+
+---
+
+## 💻 Slash Commands
+
+JametAI dilengkapi dengan Slash Commands Discord untuk monitoring dan moderasi:
+
+| Command | Fungsi | Akses |
+|---|---|---|
+| `/jamet_ping` | Cek latensi Discord & LLM | Semua User |
+| `/jamet_rep [@user]` | Cek profil reputasi user (Skor, Tier, Catatan) | Semua User |
+| `/jamet_status` | Cek Uptime bot, jumlah user diingat, dan total thread | Semua User |
+| `/jamet_topbodoh` | Papan klasemen 5 user dengan skor paling minus | Semua User |
+| `/jamet_toppinter` | Papan klasemen 5 user dengan skor paling plus | Semua User |
+| `/jamet_clear_thread` | Menghapus amnesia history percakapan di thread terkait | **Admin Only** |
+| `/jamet_reset @user` | Menghapus semua memory & dosa reputasi user dari DB | **Admin Only** |
+
 ---
 
 ## 🛠 Instalasi & Setup
@@ -78,4 +98,6 @@ pm2 start bot.py --name jametai --interpreter python3
   - `thread_handler.py` : Menyapa user otomatis waktu thread baru dibuat.
   - `ai_handler.py` : Komunikasi ke LLM, rate-limiter, chunk splitter, memory injector.
   - `status_handler.py` : Background loop status Discord 500+ variasi.
+  - `archiver_handler.py` : Background task auto-archive thread non-aktif.
+  - `slash_commands.py` : Definisi UI Slash Commands & integrasi API Discord.
   - `error_handler.py` : Mencegah error spam & silent fail.

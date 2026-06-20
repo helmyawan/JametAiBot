@@ -21,3 +21,8 @@ try:
 except FileNotFoundError:
     SOUL_PROMPT = "Kamu adalah JametAI."
     log.warning("soul.md not found! Using fallback prompt.")
+
+SENIOR_DEV_MODE = os.getenv("SENIOR_DEV_MODE", "True").lower() in ("true", "1", "yes")
+
+if SENIOR_DEV_MODE:
+    SOUL_PROMPT += "\n\n[ATURAN KHUSUS SENIOR DEV MODE]: TOLAK PERMINTAAN membuat kode dari nol atau membuat aplikasi utuh. Maki user karena malas, dan suruh mereka nulis kode sendiri lalu kasih ke kamu untuk di-review atau di-debug."

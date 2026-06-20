@@ -17,9 +17,17 @@ async def init_db():
             CREATE TABLE IF NOT EXISTS user_reputation (
                 user_id TEXT PRIMARY KEY,
                 notes TEXT NOT NULL,
+                score INTEGER DEFAULT 0,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        
+        # Safe migration if table exists without score
+        try:
+            await db.execute("ALTER TABLE user_reputation ADD COLUMN score INTEGER DEFAULT 0")
+        except aiosqlite.OperationalError:
+            pass # Column already exists
+
         await db.execute("CREATE INDEX IF NOT EXISTS idx_thread_id ON chat_history(thread_id)")
         await db.commit()
 
@@ -52,17 +60,24 @@ async def prune_history(thread_id: str, keep_limit: int):
         ''', (str(thread_id), str(thread_id), keep_limit))
         await db.commit()
 
-async def get_user_reputation(user_id: str) -> str:
+async def get_user_reputation(user_id: str) -> tuple[str, int]:
     async with aiosqlite.connect(DB_NAME) as db:
-        async with db.execute("SELECT notes FROM user_reputation WHERE user_id = ?", (str(user_id),)) as cursor:
+        async with db.execute("SELECT notes, score FROM user_reputation WHERE user_id = ?", (str(user_id),)) as cursor:
             row = await cursor.fetchone()
-            return row[0] if row else ""
+            return (row[0], row[1]) if row else ("", 0)
 
-async def update_user_reputation(user_id: str, notes: str):
+async def update_user_reputation(user_id: str, notes: str, score_delta: int = 0):
     async with aiosqlite.connect(DB_NAME) as db:
+        # Get current score
+        async with db.execute("SELECT score FROM user_reputation WHERE user_id = ?", (str(user_id),)) as cursor:
+            row = await cursor.fetchone()
+            current_score = row[0] if row else 0
+            
+        new_score = current_score + score_delta
+        
         await db.execute('''
-            INSERT INTO user_reputation (user_id, notes, updated_at) 
-            VALUES (?, ?, CURRENT_TIMESTAMP)
-            ON CONFLICT(user_id) DO UPDATE SET notes=excluded.notes, updated_at=CURRENT_TIMESTAMP
-        ''', (str(user_id), notes))
+            INSERT INTO user_reputation (user_id, notes, score, updated_at) 
+            VALUES (?, ?, ?, CURRENT_TIMESTAMP)
+            ON CONFLICT(user_id) DO UPDATE SET notes=excluded.notes, score=?, updated_at=CURRENT_TIMESTAMP
+        ''', (str(user_id), notes, new_score, new_score))
         await db.commit()

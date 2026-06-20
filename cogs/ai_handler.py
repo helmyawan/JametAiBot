@@ -142,7 +142,7 @@ class AIHandler(commands.Cog):
             final_user_content = message.content + attachment_text
 
             history = await get_history(message.channel.id, MAX_HISTORY)
-            user_rep = await get_user_reputation(message.author.id)
+            user_rep, _ = await get_user_reputation(message.author.id)
 
             system_prompt = SOUL_PROMPT
             if user_rep:

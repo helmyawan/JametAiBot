@@ -63,7 +63,7 @@ class AIHandler(commands.Cog):
         max_size = 50 * 1024  # 50KB
         
         file_contents = []
-        for att in message.attachments:
+        for att in message.attachments[:3]:
             ext = "." + att.filename.split('.')[-1].lower() if '.' in att.filename else ""
             if ext not in allowed_exts:
                 continue
@@ -78,6 +78,7 @@ class AIHandler(commands.Cog):
                 file_contents.append(f"\n\n--- Isi File: {att.filename} ---\n{text_content}\n--- End File ---")
             except Exception as e:
                 log.error(f"Failed to read attachment {att.filename}: {e}")
+                await message.reply(f"Matamu, file `{att.filename}` ra iso dibaca cok. Isi ne aneh.")
                 
         return "".join(file_contents)
 
@@ -99,10 +100,6 @@ class AIHandler(commands.Cog):
         if not self.check_trigger(message):
             return
 
-        # Fetch file content if any
-        attachment_text = await self.process_attachments(message)
-        final_user_content = message.content + attachment_text
-
         # Rate Limit check
         user_key = (message.author.id, message.channel.id)
         now = time.time()
@@ -120,6 +117,10 @@ class AIHandler(commands.Cog):
 
         # Fetch history and call LLM
         async with message.channel.typing():
+            # Fetch file content if any
+            attachment_text = await self.process_attachments(message)
+            final_user_content = message.content + attachment_text
+
             history = await get_history(message.channel.id, MAX_HISTORY)
             
             # Build payload, conditionally adding current msg if it isn't saved yet

@@ -24,9 +24,9 @@ class ThreadHandler(commands.Cog):
         try:
             owner = thread.owner_id
             if owner:
-                await thread.send(f"Woy <@{owner}>, ada yang bisa gue bantu cok? Tanya aja di mari.")
+                await thread.send(f"Woy <@{owner}>! Ono sing iso tak bantu tah asu? Takon o kene, ojok kesuwen.")
             else:
-                await thread.send("Woy! Ada yang bisa gue bantu cok? Tanya aja di mari.")
+                await thread.send("Woy! Ono sing iso tak bantu tah asu? Takon o kene, ojok kesuwen.")
         except Exception as e:
             log.error(f"Failed to send welcome message in thread {thread.id}: {e}")
 

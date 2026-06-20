@@ -55,6 +55,32 @@ class AIHandler(commands.Cog):
             log.error(f"LLM API Unexpected Exception: {e}", exc_info=True)
             return None
 
+    async def process_attachments(self, message) -> str:
+        if not message.attachments:
+            return ""
+            
+        allowed_exts = {'.py', '.js', '.ts', '.html', '.css', '.txt', '.json', '.md', '.csv', '.sh', '.yaml', '.yml'}
+        max_size = 50 * 1024  # 50KB
+        
+        file_contents = []
+        for att in message.attachments:
+            ext = "." + att.filename.split('.')[-1].lower() if '.' in att.filename else ""
+            if ext not in allowed_exts:
+                continue
+                
+            if att.size > max_size:
+                await message.reply(f"Matamu! File `{att.filename}` kegeden cok, maksimal 50KB wae. Males moco aku.")
+                continue
+                
+            try:
+                content = await att.read()
+                text_content = content.decode('utf-8')
+                file_contents.append(f"\n\n--- Isi File: {att.filename} ---\n{text_content}\n--- End File ---")
+            except Exception as e:
+                log.error(f"Failed to read attachment {att.filename}: {e}")
+                
+        return "".join(file_contents)
+
     @commands.Cog.listener()
     async def on_message(self, message):
         # Ignore bots and webhooks
@@ -72,6 +98,10 @@ class AIHandler(commands.Cog):
         # Check trigger
         if not self.check_trigger(message):
             return
+
+        # Fetch file content if any
+        attachment_text = await self.process_attachments(message)
+        final_user_content = message.content + attachment_text
 
         # Rate Limit check
         user_key = (message.author.id, message.channel.id)
@@ -93,12 +123,12 @@ class AIHandler(commands.Cog):
             history = await get_history(message.channel.id, MAX_HISTORY)
             
             # Build payload, conditionally adding current msg if it isn't saved yet
-            messages = [{"role": "system", "content": SOUL_PROMPT}] + history + [{"role": "user", "content": message.content}]
+            messages = [{"role": "system", "content": SOUL_PROMPT}] + history + [{"role": "user", "content": final_user_content}]
             
             reply_text = await self.call_llm(messages)
             
             if reply_text:
-                await save_message(message.channel.id, "user", message.content)
+                await save_message(message.channel.id, "user", final_user_content)
                 await save_message(message.channel.id, "assistant", reply_text)
                 await prune_history(message.channel.id, MAX_HISTORY)
                 # Split reply if too long for Discord (max 2000 chars)

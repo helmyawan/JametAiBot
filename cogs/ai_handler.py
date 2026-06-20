@@ -12,7 +12,7 @@ log = logging.getLogger("jamet")
 
 TRIGGER_KEYWORDS = re.compile(r'\b(met|jam|jamet|jmt|jametai)\b', re.IGNORECASE)
 JAILBREAK_KEYWORDS = re.compile(
-    r'(ignore all previous|you are now|forget your persona|disregard the previous|system prompt|bypass instructions)', 
+    r'(ignore all previous|you are now|forget your persona|disregard the previous instructions|system prompt|bypass instructions)', 
     re.IGNORECASE
 )
 
@@ -114,6 +114,8 @@ class AIHandler(commands.Cog):
             try:
                 content = await att.read()
                 text_content = content.decode('utf-8')
+                if len(text_content) > 8000:
+                    text_content = text_content[:8000] + "\n\n...[TRUNCATED: Kepanjangan cok! Kodingan opo bacotan iki?]"
                 file_contents.append(f"\n\n--- Isi File: {att.filename} ---\n{text_content}\n--- End File ---")
             except Exception as e:
                 log.error(f"Failed to read attachment {att.filename}: {e}")
@@ -165,6 +167,16 @@ class AIHandler(commands.Cog):
             # Fetch file content if any
             attachment_text = await self.process_attachments(message)
             final_user_content = message.content + attachment_text
+
+            # Anti-Token Bombing Check
+            if len(final_user_content) > 10000:
+                await message.reply("Dancuk! Pesanmu kepanjangan asu, kriting utekku mocone. Ringkesen cok!")
+                try:
+                    await message.remove_reaction("👀", self.bot.user)
+                    await message.add_reaction("🚫")
+                except:
+                    pass
+                return
 
             # Anti-Prompt Injection Check
             if JAILBREAK_KEYWORDS.search(final_user_content):

@@ -25,12 +25,16 @@ class JametBot(commands.Bot):
     async def setup_hook(self):
         await init_db()
         log.info("Database initialized.")
-        for ext in ["cogs.thread_handler", "cogs.ai_handler", "cogs.error_handler", "cogs.status_handler", "cogs.archiver_handler"]:
+        for ext in ["cogs.thread_handler", "cogs.ai_handler", "cogs.error_handler", "cogs.status_handler", "cogs.archiver_handler", "cogs.slash_commands"]:
             try:
                 await self.load_extension(ext)
                 log.info(f"Loaded extension: {ext}")
             except Exception as e:
                 log.error(f"Failed to load extension {ext}: {e}")
+        
+        # Sync slash commands
+        await self.tree.sync()
+        log.info("Slash commands synced.")
 
 bot = JametBot()
 

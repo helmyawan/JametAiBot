@@ -32,7 +32,7 @@ class AIHandler(commands.Cog):
             return True
         return False
 
-    async def _update_reputation_bg(self, user_id: int, user_name: str, history: list, new_user_msg: str, bot_reply: str):
+    async def _update_reputation_bg(self, user_id: int, user_name: str, new_user_msg: str, bot_reply: str):
         # Create a compressed snapshot of the interaction
         interaction = f"User {user_name} berkata: {new_user_msg}\nKamu membalas: {bot_reply}"
         
@@ -169,13 +169,13 @@ class AIHandler(commands.Cog):
                     await message.reply(reply_text)
 
                 # Trigger background memory update (fire and forget)
-                asyncio.create_task(self._update_reputation_bg(
+                task = asyncio.create_task(self._update_reputation_bg(
                     message.author.id, 
                     message.author.name,
-                    history,
                     final_user_content,
                     reply_text
                 ))
+                task.add_done_callback(lambda t: t.exception() and log.error(f"Reputation BG task failed: {t.exception()}"))
             else:
                 await message.reply("Matamu cok, server ra iso konek. Server modyar asu!")
 

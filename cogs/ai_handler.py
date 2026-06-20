@@ -21,6 +21,7 @@ class AIHandler(commands.Cog):
         self.bot = bot
         self.rate_limits = {} # (user_id, thread_id) -> timestamp
         self.session = None
+        self.reputation_semaphore = asyncio.Semaphore(3) # Limit max concurrent BG tasks
         
     async def cog_load(self):
         self.session = aiohttp.ClientSession()
@@ -37,6 +38,10 @@ class AIHandler(commands.Cog):
         return False
 
     async def _update_reputation_bg(self, user_id: int, user_name: str, new_user_msg: str, bot_reply: str):
+        async with self.reputation_semaphore: # Max 3 concurrent BG tasks
+            await self._do_reputation_update(user_id, user_name, new_user_msg, bot_reply)
+
+    async def _do_reputation_update(self, user_id: int, user_name: str, new_user_msg: str, bot_reply: str):
         # Create a compressed snapshot of the interaction
         interaction = f"User {user_name} berkata: {new_user_msg}\nKamu membalas: {bot_reply}"
         

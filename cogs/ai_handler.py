@@ -164,6 +164,8 @@ class AIHandler(commands.Cog):
                         if i == 0:
                             await message.reply(chunk)
                         else:
+                            async with message.channel.typing():
+                                await asyncio.sleep(1)
                             await message.channel.send(chunk)
                 else:
                     await message.reply(reply_text)

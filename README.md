@@ -37,6 +37,31 @@ JametAI dilengkapi dengan Slash Commands Discord untuk monitoring dan moderasi:
 
 ---
 
+## 🎮 Cara Pakai (Untuk User Discord)
+
+Biar user-mu nggak bingung, *copy-paste* panduan di bawah ini dan taruh di channel *Rules* atau di-pin di channel tempat JametAI nongkrong:
+
+```text
+**🔥 CARA MAKAI BOT JAMET AI 🔥**
+
+Bot ini cuma bakal ngerespon kalau kamu nanya di dalam **THREAD**, bukan nge-chat langsung di channel! Biar rapi cok.
+
+**Langkah-langkah:**
+1. Di channel ini, klik icon **[+]** atau **Create Thread** (di pojok kanan atas / di message bar).
+2. Kasih nama thread sesuai topik error/pertanyaanmu (misal: "Error Python DB", "Review Kode React").
+3. Begitu thread kebuat, JametAI bakal otomatis nyapa kamu duluan.
+4. Langsung tanyain aja masalahmu di dalam thread itu! JametAI bakal langsung mikir (keliatan react 👀).
+
+**Rules Tambahan:**
+- **Bisa baca file!** Kamu bisa langsung drag-and-drop file kodemu (.py, .js, .txt, dll - max 50KB) ke dalam thread. Nggak usah copas kodingan kepanjangan.
+- **Jangan spam.** Ada cooldown 5 detik tiap ngetik. Nekat spam? Siap-siap di-banned.
+- **Bot punya memori reputasi.** Kalau kamu nanya bagus, skormu naik. Kalau nanya bodoh atau muter-muter, skormu minus dan bot bakal makin kasar ngegasnya.
+- **Senior Dev Mode.** Jangan nyuruh bot bikin aplikasi full dari nol! Dia bakal nolak. Minta tolong review atau cari bug aja.
+- Thread yang mati (nggak ada yang ngetik) lebih dari 3 hari bakal otomatis ditutup sama bot.
+```
+
+---
+
 ## 🛠 Instalasi & Setup
 
 ### Persyaratan

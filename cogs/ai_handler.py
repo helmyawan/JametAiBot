@@ -72,7 +72,7 @@ class AIHandler(commands.Cog):
 
     async def call_llm(self, messages):
         payload = {
-            "model": LLM_MODEL,
+            "model": LLM_MODEL, "stream": False,
             "messages": messages
         }
         headers = {}

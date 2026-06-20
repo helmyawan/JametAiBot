@@ -13,6 +13,9 @@ async def init_db():
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         ''')
+        await db.execute(
+            "CREATE INDEX IF NOT EXISTS idx_thread_id ON chat_history(thread_id)"
+        )
         await db.commit()
 
 async def save_message(thread_id: str, role: str, content: str):
@@ -31,3 +34,16 @@ async def get_history(thread_id: str, max_limit: int):
         ) as cursor:
             rows = await cursor.fetchall()
             return [{"role": row[0], "content": row[1]} for row in reversed(rows)]
+
+async def prune_history(thread_id: str, keep_limit: int):
+    """Mencegah DB membengkak dengan menghapus history lama per thread."""
+    async with aiosqlite.connect(DB_NAME) as db:
+        await db.execute('''
+            DELETE FROM chat_history 
+            WHERE thread_id = ? AND id NOT IN (
+                SELECT id FROM chat_history 
+                WHERE thread_id = ? 
+                ORDER BY id DESC LIMIT ?
+            )
+        ''', (str(thread_id), str(thread_id), keep_limit))
+        await db.commit()

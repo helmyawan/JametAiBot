@@ -11,5 +11,12 @@ LLM_TIMEOUT = int(os.getenv("LLM_TIMEOUT", 30))
 RATE_LIMIT_SECONDS = int(os.getenv("RATE_LIMIT_SECONDS", 5))
 MAX_HISTORY = int(os.getenv("MAX_HISTORY", 20))
 
-with open("soul.md", "r", encoding="utf-8") as f:
-    SOUL_PROMPT = f.read()
+import logging
+log = logging.getLogger("jamet")
+
+try:
+    with open("soul.md", "r", encoding="utf-8") as f:
+        SOUL_PROMPT = f.read()
+except FileNotFoundError:
+    SOUL_PROMPT = "Kamu adalah JametAI."
+    log.warning("soul.md not found! Using fallback prompt.")

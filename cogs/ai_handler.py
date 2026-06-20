@@ -5,7 +5,7 @@ import aiohttp
 import re
 import time
 from config import CHANNEL_ID, LLM_API_URL, LLM_MODEL, LLM_TIMEOUT, RATE_LIMIT_SECONDS, MAX_HISTORY, SOUL_PROMPT
-from database import save_message, get_history
+from database import save_message, get_history, prune_history
 
 log = logging.getLogger("jamet")
 
@@ -44,8 +44,11 @@ class AIHandler(commands.Cog):
                     return None
                 data = await resp.json()
                 return data["choices"][0]["message"]["content"]
+        except aiohttp.ClientError as e:
+            log.error(f"LLM API Network Error: {e}")
+            return None
         except Exception as e:
-            log.error(f"LLM API Exception: {e}")
+            log.error(f"LLM API Unexpected Exception: {e}", exc_info=True)
             return None
 
     @commands.Cog.listener()
@@ -93,11 +96,15 @@ class AIHandler(commands.Cog):
             if reply_text:
                 await save_message(message.channel.id, "user", message.content)
                 await save_message(message.channel.id, "assistant", reply_text)
+                await prune_history(message.channel.id, MAX_HISTORY)
                 # Split reply if too long for Discord (max 2000 chars)
                 if len(reply_text) > 2000:
                     chunks = [reply_text[i:i+2000] for i in range(0, len(reply_text), 2000)]
-                    for chunk in chunks:
-                        await message.reply(chunk)
+                    for i, chunk in enumerate(chunks):
+                        if i == 0:
+                            await message.reply(chunk)
+                        else:
+                            await message.channel.send(chunk)
                 else:
                     await message.reply(reply_text)
             else:
